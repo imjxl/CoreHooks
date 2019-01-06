@@ -8,7 +8,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System.IO;
-using CoreHooks.Controllers.Modles;
 using System.Text;
 using System.Security.Cryptography;
 
@@ -82,36 +81,52 @@ namespace CoreHooks.Controllers
                 _logger.LogDebug("check success git begin!");
                 Task.Run(() =>
                 {
+
                     try
                     {
-                        string gitUrl = _config["giturl"];
-                        var gitName = gitUrl.Substring(gitUrl.IndexOf('/') + 1).Replace(".git", "");
-                        Process p = new Process();
-                        p.StartInfo = new ProcessStartInfo();
-                        p.StartInfo.FileName = "bash";
-                        p.StartInfo.UseShellExecute = false;
-                        p.StartInfo.RedirectStandardInput = true;
-                        p.StartInfo.RedirectStandardOutput = true;
-                        p.StartInfo.RedirectStandardError = true;
-                        p.StartInfo.CreateNoWindow = true;
-                        p.Start();
-                        var path = _config["clonePath"];
-                        if (Directory.Exists(path))
+                        using (Process p = new Process())
                         {
-                            p.StandardInput.WriteLine("cd " + Path.Combine(path, gitName));
-                            p.StandardInput.WriteLine("git pull origin master");
-                        }
-                        else
-                        {
-                            if (!Directory.Exists(path))
+                            string gitUrl = _config["giturl"];
+                            var gitName = gitUrl.Substring(gitUrl.IndexOf('/') + 1).Replace(".git", "");
+                            p.StartInfo = new ProcessStartInfo();
+                            p.StartInfo.FileName = "bash";
+                            p.StartInfo.UseShellExecute = false;
+                            p.StartInfo.RedirectStandardInput = true;
+                            p.StartInfo.RedirectStandardOutput = true;
+                            p.StartInfo.RedirectStandardError = true;
+                            p.StartInfo.CreateNoWindow = true;
+                            p.OutputDataReceived += new DataReceivedEventHandler(process_OutputDataReceived);
+                            p.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
+                            p.Start();
+                            var path = _config["clonePath"];
+                            if (Directory.Exists(path))
                             {
-                                Directory.CreateDirectory(path);
+                                p.StandardInput.WriteLine("cd " + Path.Combine(path, gitName));
+                                if (p.WaitForInputIdle())
+                                {
+                                    p.StandardInput.WriteLine("git pull origin master");
+                                }
                             }
-                            p.StandardInput.WriteLine("cd " + path);
-                            p.StandardInput.WriteLine("git clone " + _config["giturl"]);
+                            else
+                            {
+                                if (!Directory.Exists(path))
+                                {
+                                    Directory.CreateDirectory(path);
+                                }
+
+                                p.StandardInput.WriteLine("cd " + path);
+                                if (p.WaitForInputIdle())
+                                {
+                                    p.StandardInput.WriteLine("git clone " + _config["giturl"]);
+                                }
+                            }
+                            if (p.WaitForInputIdle())
+                            {
+                                p.Close();
+                            }
+                            _logger.LogDebug("git over!");
                         }
-                         _logger.LogDebug("git over!");
-                        p.Close();
+
                     }
                     catch (Exception ex)
                     {
@@ -121,10 +136,26 @@ namespace CoreHooks.Controllers
             }
             else
             {
-                 _logger.LogDebug("check failed");
+                _logger.LogDebug("check failed");
             }
             return Ok();
-            
+
+        }
+
+        private void process_OutputDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            if (!String.IsNullOrEmpty(e.Data))
+            {
+                _logger.LogDebug("执行数据：" + e.Data);
+            }
+        }
+
+        private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
+        {
+            if (!String.IsNullOrEmpty(e.Data))
+            {
+                _logger.LogError("执行数据：" + e.Data);
+            }
         }
 
         private byte[] SignWithHmac(byte[] dataToSign, byte[] keyBody)
