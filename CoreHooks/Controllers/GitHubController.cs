@@ -113,9 +113,9 @@ namespace CoreHooks.Controllers
                             {
                                 p.StandardInput.WriteLine("cd " + path);
                                 p.StandardInput.WriteLine("git clone " + _config["giturl"]);
-                                
+
                             }
-                            
+
                             _logger.LogDebug("git over!");
                         }
 
@@ -167,6 +167,11 @@ namespace CoreHooks.Controllers
             }
 
             return builder.ToString();
+        }
+
+        private void Test()
+        {
+            Console.WriteLine("hello");
         }
 
     }
