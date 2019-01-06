@@ -99,9 +99,14 @@ namespace CoreHooks.Controllers
                             p.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
                             p.Start();
                             var path = _config["clonePath"];
-                            if (Directory.Exists(path))
+                            var destPath=Path.Combine(_config["clonePath"], gitName);
+                            if(!Directory.Exists(path))
                             {
-                                p.StandardInput.WriteLine("cd " + Path.Combine(path, gitName));
+                                Directory.CreateDirectory(path);
+                            }
+                            if (Directory.Exists(destPath))
+                            {
+                                p.StandardInput.WriteLine("cd " + path);
                                 if (p.WaitForInputIdle())
                                 {
                                     p.StandardInput.WriteLine("git pull origin master");
@@ -109,11 +114,6 @@ namespace CoreHooks.Controllers
                             }
                             else
                             {
-                                if (!Directory.Exists(path))
-                                {
-                                    Directory.CreateDirectory(path);
-                                }
-
                                 p.StandardInput.WriteLine("cd " + path);
                                 if (p.WaitForInputIdle())
                                 {
