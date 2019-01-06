@@ -81,44 +81,43 @@ namespace CoreHooks.Controllers
                 _logger.LogDebug("check success git begin!");
                 Task.Run(() =>
                 {
-
                     try
                     {
-                        using (Process p = new Process())
+                        List<string> command = new List<string>();
+                        string gitUrl = _config["giturl"];
+                        var gitName = gitUrl.Substring(gitUrl.IndexOf('/') + 1).Replace(".git", "");
+                        var path = _config["clonePath"];
+                        var destPath = Path.Combine(_config["clonePath"], gitName);
+                        if (!Directory.Exists(path))
                         {
-                            string gitUrl = _config["giturl"];
-                            var gitName = gitUrl.Substring(gitUrl.IndexOf('/') + 1).Replace(".git", "");
-                            p.StartInfo = new ProcessStartInfo();
-                            p.StartInfo.FileName = "bash";
-                            p.StartInfo.UseShellExecute = false;
-                            p.StartInfo.RedirectStandardInput = true;
-                            p.StartInfo.RedirectStandardOutput = true;
-                            p.StartInfo.RedirectStandardError = true;
-                            p.StartInfo.CreateNoWindow = true;
-                            p.OutputDataReceived += new DataReceivedEventHandler(process_OutputDataReceived);
-                            p.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
-                            p.Start();
-                            var path = _config["clonePath"];
-                            var destPath = Path.Combine(_config["clonePath"], gitName);
-                            if (!Directory.Exists(path))
-                            {
-                                Directory.CreateDirectory(path);
-                            }
-                            if (Directory.Exists(destPath))
-                            {
-                                p.StandardInput.WriteLine("cd " + path);
-                                p.StandardInput.WriteLine("git pull origin master");
-                            }
-                            else
-                            {
-                                p.StandardInput.WriteLine("cd " + path);
-                                p.StandardInput.WriteLine("git clone " + _config["giturl"]);
-
-                            }
-
-                            _logger.LogDebug("git over!");
+                            Directory.CreateDirectory(path);
                         }
-
+                        command.Add("cd " + path);
+                        if (Directory.Exists(destPath))
+                        {
+                            command.Add("git pull origin master");
+                        }
+                        else
+                        {
+                            command.Add("git clone " + _config["giturl"]);
+                        }
+                        using (Process proc = new Process())
+                        {
+                            proc.StartInfo.FileName = "bash";
+                            proc.StartInfo.UseShellExecute = false;
+                            proc.StartInfo.RedirectStandardOutput = true;
+                            proc.StartInfo.RedirectStandardInput = true;
+                            proc.Start();
+                            foreach (var c in command)
+                            {
+                                proc.StandardInput.WriteLine(c);
+                                while (!proc.StandardOutput.EndOfStream)
+                                {
+                                    _logger.LogDebug(proc.StandardOutput.ReadLine());
+                                }
+                            }
+                        }
+                         _logger.LogDebug("git over!");
                     }
                     catch (Exception ex)
                     {
@@ -133,6 +132,7 @@ namespace CoreHooks.Controllers
             return Ok();
 
         }
+
 
         private void process_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
