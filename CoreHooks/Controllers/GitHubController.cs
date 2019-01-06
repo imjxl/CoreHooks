@@ -92,13 +92,14 @@ namespace CoreHooks.Controllers
                         {
                             Directory.CreateDirectory(path);
                         }
-                        command.Add("cd " + path);
                         if (Directory.Exists(destPath))
                         {
+                            command.Add("cd " + destPath);
                             command.Add("git pull origin master");
                         }
                         else
                         {
+                            command.Add("cd " + path);
                             command.Add("git clone " + _config["giturl"]);
                         }
                         using (Process proc = new Process())
