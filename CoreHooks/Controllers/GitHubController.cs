@@ -108,17 +108,18 @@ namespace CoreHooks.Controllers
                             proc.StartInfo.UseShellExecute = false;
                             proc.StartInfo.RedirectStandardOutput = true;
                             proc.StartInfo.RedirectStandardInput = true;
+                            proc.OutputDataReceived += new DataReceivedEventHandler(process_OutputDataReceived);
+                            proc.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
                             proc.Start();
+                            proc.BeginOutputReadLine();
+                            proc.BeginErrorReadLine();
                             foreach (var c in command)
                             {
                                 proc.StandardInput.WriteLine(c);
-                                while (!proc.StandardOutput.EndOfStream)
-                                {
-                                    _logger.LogDebug(proc.StandardOutput.ReadLine());
-                                }
                             }
+                            
                         }
-                         _logger.LogDebug("git over!");
+                        _logger.LogDebug("git over!");
                     }
                     catch (Exception ex)
                     {
@@ -168,11 +169,6 @@ namespace CoreHooks.Controllers
             }
 
             return builder.ToString();
-        }
-
-        private void Test()
-        {
-            Console.WriteLine("hello");
         }
 
     }
