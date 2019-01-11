@@ -108,16 +108,18 @@ namespace CoreHooks.Controllers
                             proc.StartInfo.UseShellExecute = false;
                             proc.StartInfo.RedirectStandardOutput = true;
                             proc.StartInfo.RedirectStandardInput = true;
+                            proc.BeginOutputReadLine();
+                            proc.BeginErrorReadLine();
                             proc.OutputDataReceived += new DataReceivedEventHandler(process_OutputDataReceived);
                             proc.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
                             proc.Start();
-                            proc.BeginOutputReadLine();
-                            proc.BeginErrorReadLine();
+                            
                             foreach (var c in command)
                             {
                                 proc.StandardInput.WriteLine(c);
                             }
-                            
+                            proc.StandardInput.WriteLine("exit");
+                            proc.WaitForExit();
                         }
                         _logger.LogDebug("git over!");
                     }
@@ -138,17 +140,16 @@ namespace CoreHooks.Controllers
 
         private void process_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            if (!String.IsNullOrEmpty(e.Data))
-            {
+            
                 _logger.LogDebug("执行数据：" + e.Data);
-            }
+            
         }
 
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
             if (!String.IsNullOrEmpty(e.Data))
             {
-                _logger.LogError("执行数据：" + e.Data);
+                _logger.LogError("错误数据：" + e.Data);
             }
         }
 
