@@ -42,6 +42,7 @@ namespace CoreHooks
                 app.UseHsts();
             }
             app.UseMvc();
+            
         }
     }
 }

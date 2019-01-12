@@ -79,55 +79,68 @@ namespace CoreHooks.Controllers
             if (isSuccess)
             {
                 _logger.LogDebug("check success git begin!");
-                Task.Run(() =>
+                Task t = Task.Run(() =>
+                 {
+                     try
+                     {
+                         List<string> command = new List<string>();
+                         string gitUrl = _config["giturl"];
+                         var gitName = gitUrl.Substring(gitUrl.IndexOf('/') + 1);
+                         gitName = gitName.Substring(0, gitName.LastIndexOf(".git"));
+                         var path = _config["clonePath"];
+                         var destPath = Path.Combine(_config["clonePath"], gitName);
+                         if (!Directory.Exists(path))
+                         {
+                             Directory.CreateDirectory(path);
+                         }
+                         if (Directory.Exists(destPath))
+                         {
+                             command.Add("cd " + destPath);
+                             _logger.LogDebug("add command:" + command[command.Count - 1]);
+                             command.Add("git pull origin master");
+                             _logger.LogDebug("add command:" + command[command.Count - 1]);
+                         }
+                         else
+                         {
+                             command.Add("cd " + path);
+                             _logger.LogDebug("add command:" + command[command.Count - 1]);
+                             command.Add("git clone " + _config["giturl"]);
+                             _logger.LogDebug("add command:" + command[command.Count - 1]);
+                         }
+                         using (Process proc = new Process())
+                         {
+                             proc.StartInfo.FileName = "bash";
+                             proc.StartInfo.UseShellExecute = false;
+                             proc.StartInfo.RedirectStandardOutput = true;
+                             proc.StartInfo.RedirectStandardError = true;
+                             proc.StartInfo.RedirectStandardInput = true;
+                             proc.OutputDataReceived += new DataReceivedEventHandler(process_OutputDataReceived);
+                             proc.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
+                             proc.Start();
+                             proc.BeginOutputReadLine();
+                             proc.BeginErrorReadLine();
+                             foreach (var c in command)
+                             {
+                                 proc.StandardInput.WriteLine(c);
+                             }
+                             proc.StandardInput.WriteLine("exit");
+                             proc.WaitForExit();
+                         }
+                         _logger.LogDebug("git over!");
+                     }
+                     catch (Exception ex)
+                     {
+                         _logger.LogError(ex, "git exction");
+                     }
+                 });
+                if (t.IsCompletedSuccessfully)
                 {
-                    try
-                    {
-                        List<string> command = new List<string>();
-                        string gitUrl = _config["giturl"];
-                        var gitName = gitUrl.Substring(gitUrl.IndexOf('/') + 1).Replace(".git", "");
-                        var path = _config["clonePath"];
-                        var destPath = Path.Combine(_config["clonePath"], gitName);
-                        if (!Directory.Exists(path))
-                        {
-                            Directory.CreateDirectory(path);
-                        }
-                        if (Directory.Exists(destPath))
-                        {
-                            command.Add("cd " + destPath);
-                            command.Add("git pull origin master");
-                        }
-                        else
-                        {
-                            command.Add("cd " + path);
-                            command.Add("git clone " + _config["giturl"]);
-                        }
-                        using (Process proc = new Process())
-                        {
-                            proc.StartInfo.FileName = "bash";
-                            proc.StartInfo.UseShellExecute = false;
-                            proc.StartInfo.RedirectStandardOutput = true;
-                            proc.StartInfo.RedirectStandardInput = true;
-                            proc.BeginOutputReadLine();
-                            proc.BeginErrorReadLine();
-                            proc.OutputDataReceived += new DataReceivedEventHandler(process_OutputDataReceived);
-                            proc.ErrorDataReceived += new DataReceivedEventHandler(Process_ErrorDataReceived);
-                            proc.Start();
-                            
-                            foreach (var c in command)
-                            {
-                                proc.StandardInput.WriteLine(c);
-                            }
-                            proc.StandardInput.WriteLine("exit");
-                            proc.WaitForExit();
-                        }
-                        _logger.LogDebug("git over!");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "git exction");
-                    }
-                });
+                    _logger.LogDebug("command run success");
+                }
+                else
+                {
+                    _logger.LogDebug("command over but not success");
+                }
             }
             else
             {
@@ -140,17 +153,14 @@ namespace CoreHooks.Controllers
 
         private void process_OutputDataReceived(object sender, DataReceivedEventArgs e)
         {
-            
-                _logger.LogDebug("执行数据：" + e.Data);
-            
+
+            _logger.LogDebug("执行数据：" + e.Data);
+
         }
 
         private void Process_ErrorDataReceived(object sender, DataReceivedEventArgs e)
         {
-            if (!String.IsNullOrEmpty(e.Data))
-            {
-                _logger.LogError("错误数据：" + e.Data);
-            }
+            _logger.LogError("错误数据：" + e.Data);
         }
 
         private byte[] SignWithHmac(byte[] dataToSign, byte[] keyBody)
